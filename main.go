@@ -9,6 +9,17 @@ import (
 	"strconv"
 )
 
+func filter(vs []os.FileInfo, f func(os.FileInfo) bool) []os.FileInfo {
+	res := make([]os.FileInfo, 0)
+	for _, v := range vs {
+		if f(v) {
+			res = append(res, v)
+		}
+	}
+
+	return res
+}
+
 func formatOutput(file os.FileInfo, prefix string, isLast bool) string {
 	name := file.Name()
 	glyph := "├"
@@ -28,7 +39,7 @@ func formatOutput(file os.FileInfo, prefix string, isLast bool) string {
 	return prefix + glyph + "───" + name + "\n"
 }
 
-func scanDir(path string, getFiles bool, prefix string) (res string) {
+func scanDir(path string, printFiles bool, prefix string) (res string) {
 	dir, err := os.Open(path)
 	if err != nil {
 		panic(err.Error())
@@ -36,18 +47,21 @@ func scanDir(path string, getFiles bool, prefix string) (res string) {
 
 	if items, err := dir.Readdir(0); err == nil {
 		sort.Slice(items, func(i, j int) bool { return items[i].Name() < items[j].Name() })
+		if !printFiles {
+			items = filter(items, func(item os.FileInfo) bool { return item.IsDir() })
+		}
 
 		for i := 0; i < len(items); i++ {
 			currFile := items[i]
 			if i == len(items)-1 {
 				res += formatOutput(currFile, prefix, true)
-				if items[i].IsDir() {
-					res += scanDir(filepath.Join(path, currFile.Name()), getFiles, prefix+"\t")
+				if currFile.IsDir() {
+					res += scanDir(filepath.Join(path, currFile.Name()), printFiles, prefix+"\t")
 				}
 			} else {
 				res += formatOutput(currFile, prefix, false)
-				if items[i].IsDir() {
-					res += scanDir(filepath.Join(path, currFile.Name()), getFiles, prefix+"│\t")
+				if currFile.IsDir() {
+					res += scanDir(filepath.Join(path, currFile.Name()), printFiles, prefix+"│\t")
 				}
 			}
 		}
@@ -57,7 +71,7 @@ func scanDir(path string, getFiles bool, prefix string) (res string) {
 }
 
 func dirTree(out io.Writer, path string, printFiles bool) error {
-	fmt.Println(scanDir(path, printFiles, ""))
+	fmt.Fprint(out, scanDir(path, printFiles, ""))
 
 	return nil
 }
