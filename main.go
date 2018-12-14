@@ -6,15 +6,26 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 )
 
 func formatOutput(file os.FileInfo, prefix string, isLast bool) string {
+	name := file.Name()
 	glyph := "├"
 	if isLast {
 		glyph = "└"
 	}
 
-	return prefix + glyph + "───" + file.Name() + "\n"
+	if !file.IsDir() {
+		size := strconv.FormatInt(file.Size(), 10) + "b"
+		if size == "0b" {
+			size = "empty"
+		}
+
+		name += " (" + size + ")"
+	}
+
+	return prefix + glyph + "───" + name + "\n"
 }
 
 func scanDir(path string, getFiles bool, prefix string) (res string) {
